@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireGestor } from "@/lib/auth/session";
-import { getCycle } from "../actions";
+import { getCycle, closeAndAnalyze } from "../actions";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import ShareLink from "./share-link";
 
 const CYCLE_STATUS_LABELS: Record<string, string> = {
   scheduled: "Agendado",
   open: "Aberto",
   closed: "Fechado",
-  processing: "Processando",
+  processing: "Analisando...",
   analyzed: "Analisado",
 };
 
@@ -58,6 +59,30 @@ export default async function CicloDetailPage({
           <p>{cycle.analysisError}</p>
         </div>
       )}
+
+      <div className="flex gap-2">
+        {cycle.status === "open" && (
+          <form action={closeAndAnalyze}>
+            <input type="hidden" name="cycleId" value={cycle.id} />
+            <Button type="submit" variant="default">
+              Fechar e analisar
+            </Button>
+          </form>
+        )}
+        {cycle.status === "closed" && cycle.analysisError && (
+          <form action={closeAndAnalyze}>
+            <input type="hidden" name="cycleId" value={cycle.id} />
+            <Button type="submit" variant="default">
+              Tentar análise novamente
+            </Button>
+          </form>
+        )}
+        {cycle.status === "analyzed" && (
+          <Button render={<Link href={`/app/ciclos/${cycle.id}/relatorio`} />} variant="outline">
+            Ver relatório
+          </Button>
+        )}
+      </div>
 
       {cycle.publicToken && (
         <div className="space-y-2">

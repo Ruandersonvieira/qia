@@ -1,10 +1,12 @@
 "use server";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { and, eq, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "@/db/client";
 import { cycles, questionnaires, questions, responses } from "@/db/schema";
 import { requireGestor } from "@/lib/auth/session";
+import { runAnalysis } from "@/lib/analysis/pipeline";
 
 // datetime-local não carrega fuso; interpreta o valor no fuso do browser do
 // gestor (tzOffset em minutos, padrão getTimezoneOffset). Sem offset, cai no
@@ -91,4 +93,17 @@ export async function getCycle(id: string) {
   ]);
 
   return { cycle, questionnaire, responseCount };
+}
+
+export async function closeAndAnalyze(formData: FormData) {
+  const { clientId } = await requireGestor();
+  const cycleId = String(formData.get("cycleId"));
+  const cycle = await db.query.cycles.findFirst({ where: and(eq(cycles.id, cycleId), eq(cycles.clientId, clientId)) });
+  if (!cycle || (cycle.status !== "open" && cycle.status !== "closed")) return;
+  try {
+    await runAnalysis(cycleId);
+  } catch {
+    // erro fica registrado em cycles.analysisError; página exibe
+  }
+  revalidatePath(`/app/ciclos/${cycleId}`);
 }
