@@ -126,6 +126,10 @@ export async function deleteQuestion(formData: FormData) {
   const { clientId } = await requireGestor();
   const id = String(formData.get("id"));
   const questionnaireId = String(formData.get("questionnaireId"));
+  const question = await db.query.questions.findFirst({
+    where: and(eq(questions.id, id), eq(questions.clientId, clientId)),
+  });
+  if (!question) return; // não existe ou não é deste client
   const hasAnswers = await db.query.answers.findFirst({ where: eq(answers.questionId, id) });
   if (hasAnswers) return; // com resposta: só arquivar
   await db.transaction(async (tx) => {
