@@ -1,8 +1,12 @@
 import { notFound } from "next/navigation";
 import { requireGestor } from "@/lib/auth/session";
 import { getQuestionnaire, updateQuestionnaireStatus } from "../actions";
+import { listQuestions } from "./perguntas/actions";
+import { listCategories } from "../../categorias/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import QuestionForm from "./question-form";
+import QuestionList from "./question-list";
 
 const USE_CASE_LABELS: Record<string, string> = {
   clima: "Clima",
@@ -33,6 +37,7 @@ export default async function QuestionarioDetailPage({
   const { id } = await params;
   const questionnaire = await getQuestionnaire(id);
   if (!questionnaire) notFound();
+  const [questions, categories] = await Promise.all([listQuestions(id), listCategories()]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-8">
@@ -76,9 +81,8 @@ export default async function QuestionarioDetailPage({
 
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Perguntas</h2>
-        <p className="text-sm text-muted-foreground">
-          Nenhuma pergunta cadastrada ainda. A criação de perguntas será adicionada em breve.
-        </p>
+        <QuestionList questionnaireId={id} questions={questions} categories={categories} />
+        <QuestionForm questionnaireId={id} categories={categories} />
       </div>
 
       <div className="space-y-4">
