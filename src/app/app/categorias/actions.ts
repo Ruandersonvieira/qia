@@ -5,7 +5,8 @@ import { db } from "@/db/client";
 import { categories } from "@/db/schema";
 import { requireGestor } from "@/lib/auth/session";
 
-export async function listCategories(clientId: string) {
+export async function listCategories() {
+  const { clientId } = await requireGestor();
   return db.query.categories.findMany({
     where: or(isNull(categories.clientId), eq(categories.clientId, clientId)),
     orderBy: (c, { asc }) => [asc(c.name)],

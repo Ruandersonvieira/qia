@@ -8,7 +8,7 @@ import CategoryEditForm from "./category-edit-form";
 
 export default async function CategoriasPage() {
   const { clientId } = await requireGestor();
-  const cats = await listCategories(clientId);
+  const cats = await listCategories();
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-8">
