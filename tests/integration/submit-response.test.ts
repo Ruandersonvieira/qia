@@ -57,4 +57,28 @@ describe("submitResponse", () => {
     expect(await submitResponse({ publicToken: t2, fingerprint: "a", answers: [{ questionId, valueNumeric: 3 }] })).toEqual({ ok: true });
     expect(await submitResponse({ publicToken: t2, fingerprint: "b", answers: [{ questionId, valueNumeric: 3 }] })).toEqual({ ok: false, reason: "closed" });
   });
+
+  it("rejeita questionId que não pertence ao ciclo", async () => {
+    const [client2] = await db.insert(clients).values({ name: "T2", slug: `t2-${nanoid(6)}` }).returning();
+    const [cat2] = await db.insert(categories).values({ clientId: client2.id, name: "Clima" }).returning();
+    const [qn2] = await db.insert(questionnaires).values({ clientId: client2.id, title: "Q2", status: "active" }).returning();
+    const [q2] = await db.insert(questions).values({
+      clientId: client2.id, questionnaireId: qn2.id, categoryId: cat2.id, position: 1,
+      text: "Outra pergunta?", analysisGoal: "g", howToWork: "h", answerType: "scale", config: { min: 1, max: 5 },
+    }).returning();
+
+    const t3 = nanoid(16);
+    const cycle = await db.query.cycles.findFirst({ where: (c, { eq }) => eq(c.publicToken, token) });
+    await db.insert(cycles).values({
+      clientId: cycle!.clientId, questionnaireId: cycle!.questionnaireId,
+      isPublic: true, publicToken: t3, questionCount: 1, status: "open",
+    });
+
+    const result = await submitResponse({
+      publicToken: t3,
+      fingerprint: "fp-invalid",
+      answers: [{ questionId: q2.id, valueNumeric: 3 }],
+    });
+    expect(result).toEqual({ ok: false, reason: "invalid" });
+  });
 });

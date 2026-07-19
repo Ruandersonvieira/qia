@@ -208,8 +208,13 @@ export default function ResponseForm({
     const answersInput = buildAnswers(questions, formData);
 
     startTransition(async () => {
-      const res = await submitPublicResponse(publicToken, answersInput);
-      setResult(res);
+      try {
+        const res = await submitPublicResponse(publicToken, answersInput);
+        setResult(res);
+      } catch (err) {
+        console.error(err);
+        setResult({ ok: false, reason: "invalid" });
+      }
     });
   }
 

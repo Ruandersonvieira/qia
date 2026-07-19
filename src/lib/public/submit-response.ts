@@ -1,6 +1,6 @@
 import { and, count, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { answers, cycles, responses } from "@/db/schema";
+import { answers, cycles, questions, responses } from "@/db/schema";
 
 export type SubmitInput = {
   publicToken: string;
@@ -32,6 +32,17 @@ export async function submitResponse(input: SubmitInput): Promise<SubmitResult> 
   const cycle = await getOpenCycleByToken(input.publicToken);
   if (!cycle) return { ok: false, reason: "closed" };
   if (!input.fingerprint) return { ok: false, reason: "invalid" };
+
+  if (input.answers.length) {
+    const activeQuestions = await db
+      .select({ id: questions.id })
+      .from(questions)
+      .where(and(eq(questions.questionnaireId, cycle.questionnaireId), eq(questions.status, "active")));
+    const validQuestionIds = new Set(activeQuestions.map((q) => q.id));
+    if (input.answers.some((a) => !validQuestionIds.has(a.questionId))) {
+      return { ok: false, reason: "invalid" };
+    }
+  }
 
   try {
     await db.transaction(async (tx) => {
