@@ -207,6 +207,15 @@ export default function ResponseForm({
 
     const answersInput = buildAnswers(questions, formData);
 
+    // Garante o cookie qia_fp antes da action: se a action precisar criar o
+    // cookie via cookies().set, o Next re-renderiza a rota e o page.tsx troca
+    // este form pela tela "Você já respondeu" antes do usuário ver o
+    // "Obrigado". Com o cookie já presente na requisição, a action não seta
+    // nada e a mensagem de sucesso permanece na tela.
+    if (!document.cookie.split("; ").some((c) => c.startsWith("qia_fp="))) {
+      document.cookie = `qia_fp=${crypto.randomUUID()}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    }
+
     startTransition(async () => {
       try {
         const res = await submitPublicResponse(publicToken, answersInput);
