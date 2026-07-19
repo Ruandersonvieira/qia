@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { db } from "@/db/client";
-import { clients, questionnaires, questions, categories, cycles, responses } from "@/db/schema";
+import { clients, questionnaires, questions, categories, cycles } from "@/db/schema";
 import { submitResponse } from "@/lib/public/submit-response";
 import { nanoid } from "nanoid";
 

@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# qia
 
-## Getting Started
+SaaS multi-tenant de questionários com análise por IA. Cada cliente cadastra questionários com perguntas categorizadas, roda ciclos (fechados ou públicos) e, ao fechar um ciclo, um assistente (Claude) analisa as respostas agregadas por categoria e gera relatório com recomendações.
 
-First, run the development server:
+Contexto completo do produto: [`docs/project.md`](docs/project.md). Modelagem de dados: [`docs/modelagem.md`](docs/modelagem.md). Spec e plano da fatia 1 (implementada): [`docs/superpowers/specs/2026-07-18-fatia1-ciclo-publico-design.md`](docs/superpowers/specs/2026-07-18-fatia1-ciclo-publico-design.md) e [`docs/superpowers/plans/2026-07-18-fatia1-ciclo-publico.md`](docs/superpowers/plans/2026-07-18-fatia1-ciclo-publico.md).
+
+## Stack
+
+- **Next.js 16** (App Router, Turbopack) + React 19 + TypeScript
+- **Postgres** via Drizzle ORM (schema em `src/db/schema`, migrations em `src/db/migrations`)
+- **Better Auth** (email/senha) para login do gestor (`/app`); sessão própria em JWT para o admin master (`/admin`)
+- **Anthropic Claude API** (`@anthropic-ai/sdk`) para análise das respostas
+- **Tailwind CSS 4** + shadcn/ui (Base UI)
+- **Vitest** para testes unitários e de integração
+
+## Setup local
+
+### 1. Banco de dados
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up -d
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sobe um Postgres 16 na porta **5434** (`docker-compose.yml`), com usuário/senha/db `qia`/`qia`/`qia`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Variáveis de ambiente
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env.local
+```
 
-## Learn More
+| Variável                 | Descrição                                                              |
+| ------------------------- | ------------------------------------------------------------------------ |
+| `DATABASE_URL`            | `postgres://qia:qia@localhost:5434/qia`                                  |
+| `BETTER_AUTH_SECRET`      | Segredo do Better Auth (sessão do gestor)                                |
+| `MASTER_SESSION_SECRET`   | Segredo do JWT de sessão do admin master                                 |
+| `ANTHROPIC_API_KEY`       | Chave da API da Anthropic, usada na análise ao fechar um ciclo           |
+| `NEXT_PUBLIC_APP_URL`     | URL base da aplicação (usada para montar o link de convite)              |
 
-To learn more about Next.js, take a look at the following resources:
+Gere segredos com `openssl rand -hex 32`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Instalar dependências e migrar
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm install
+pnpm db:migrate
+```
 
-## Deploy on Vercel
+### 4. Seeds
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+MASTER_EMAIL=admin@qia.local MASTER_PASSWORD=admin123 pnpm seed:master
+pnpm seed:categories
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `seed:master` cria (ou atualiza a senha de) o admin master que acessa `/admin`. Idempotente.
+- `seed:categories` cria as categorias globais padrão (Clima, Riscos Psicossociais, Satisfação, NPS, Demografia). Idempotente.
+
+> Se as variáveis de `.env.local` não forem carregadas automaticamente pelo `dotenv` (ex: ao rodar os scripts fora do fluxo do Next), prefixe o comando com `DATABASE_URL=postgres://qia:qia@localhost:5434/qia`.
+
+### 5. Rodar em dev
+
+```bash
+pnpm dev
+```
+
+Sobe em `http://localhost:3000` (cai para `3001` se a 3000 estiver ocupada).
+
+## Scripts pnpm
+
+| Script              | Descrição                                          |
+| -------------------- | --------------------------------------------------- |
+| `pnpm dev`            | Servidor de desenvolvimento (Next + Turbopack)       |
+| `pnpm build`          | Build de produção                                    |
+| `pnpm start`          | Sobe o build de produção                             |
+| `pnpm lint`           | ESLint                                               |
+| `pnpm test`           | Testes (Vitest) — unitários e de integração          |
+| `pnpm db:generate`    | Gera migration a partir do schema (`src/db/schema`)  |
+| `pnpm db:migrate`     | Aplica migrations pendentes no banco                 |
+| `pnpm seed:master`    | Cria/atualiza o admin master (`MASTER_EMAIL`/`MASTER_PASSWORD`) |
+| `pnpm seed:categories`| Cria as categorias globais padrão                    |
+
+Os testes de integração usam o Postgres do `docker-compose.yml`; garanta que ele esteja de pé antes de rodar `pnpm test`.
+
+## Mapa de rotas
+
+| Rota                              | Quem acessa       | Descrição                                                              |
+| ---------------------------------- | ------------------ | -------------------------------------------------------------------------- |
+| `/admin/login`                     | Admin master        | Login do master (sessão JWT própria)                                       |
+| `/admin`                           | Admin master        | Cria clientes (tenants) e dispara convite de owner                         |
+| `/convite/[token]`                 | Owner convidado     | Aceita o convite e define senha (cria usuário no Better Auth)              |
+| `/app/login`                       | Gestor              | Login do gestor (Better Auth)                                              |
+| `/app`                             | Gestor              | Início da área logada do cliente                                           |
+| `/app/categorias`                  | Gestor              | CRUD de categorias próprias do cliente                                     |
+| `/app/questionarios`               | Gestor              | Lista/CRUD de questionários                                                |
+| `/app/questionarios/novo`          | Gestor              | Criação de questionário                                                    |
+| `/app/questionarios/[id]`          | Gestor              | Detalhe do questionário: perguntas, opções, ativação                       |
+| `/app/ciclos/[id]`                 | Gestor              | Detalhe do ciclo: link/QR público, fechar e analisar                       |
+| `/app/ciclos/[id]/relatorio`       | Gestor              | Relatório da análise (resumo geral, por categoria, gráficos, recomendações)|
+| `/r/[token]`                       | Público             | Página de resposta do ciclo público (sem login, com dedup por fingerprint) |
+
+## Fluxo ponta a ponta
+
+1. Admin master (`/admin`) cria um client e um owner → gera link de convite
+2. Owner acessa `/convite/[token]`, define senha → vira usuário do Better Auth
+3. Owner loga em `/app/login` e cadastra categoria(s), questionário e perguntas (objetivo de análise + como trabalhar)
+4. Ativa o questionário e abre um ciclo público (`/app/ciclos/[id]`) → gera link/QR (`/r/[token]`)
+5. Respondentes respondem via `/r/[token]` (dedup por fingerprint, fecha por prazo/limite de respostas)
+6. Gestor fecha o ciclo e dispara a análise (Claude, por categoria + resumo do ciclo, com mascaramento de nomes e regra de N mínimo pra dados sensíveis)
+7. Relatório fica disponível em `/app/ciclos/[id]/relatorio`

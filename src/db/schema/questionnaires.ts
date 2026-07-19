@@ -1,5 +1,5 @@
 import { pgTable, uuid, text, timestamp, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
-import { questionnaireStatus, useCase, answerType, questionStatus } from "./enums";
+import { questionnaireStatus, caseUseEnum, answerType, questionStatus } from "./enums";
 import { clients } from "./clients";
 
 export const categories = pgTable(
@@ -22,7 +22,7 @@ export const questionnaires = pgTable(
     clientId: uuid("client_id").notNull().references(() => clients.id),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
-    useCase: useCase("use_case"),
+    useCase: caseUseEnum("use_case"),
     status: questionnaireStatus("status").notNull().default("draft"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
