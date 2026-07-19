@@ -1,10 +1,10 @@
 "use server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, eq, count } from "drizzle-orm";
+import { and, eq, or, isNull, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "@/db/client";
-import { cycles, questionnaires, questions, responses } from "@/db/schema";
+import { analysisResults, categories, cycles, questionnaires, questions, responses } from "@/db/schema";
 import { requireGestor } from "@/lib/auth/session";
 import { runAnalysis } from "@/lib/analysis/pipeline";
 
@@ -106,4 +106,31 @@ export async function closeAndAnalyze(formData: FormData) {
     // erro fica registrado em cycles.analysisError; página exibe
   }
   revalidatePath(`/app/ciclos/${cycleId}`);
+}
+
+// Relatório final: ciclo (escopo clientId) + resultados da análise + nomes de
+// categoria (globais ou do client, já que categories.clientId pode ser null).
+export async function getCycleReport(id: string) {
+  const { clientId } = await requireGestor();
+  const result = await getCycle(id);
+  if (!result || !result.questionnaire) return null;
+  const { cycle } = result;
+  if (cycle.status !== "analyzed") return null;
+
+  const [results, categoryRows] = await Promise.all([
+    db.query.analysisResults.findMany({
+      where: and(eq(analysisResults.cycleId, cycle.id), eq(analysisResults.clientId, clientId)),
+    }),
+    db.query.categories.findMany({
+      where: or(isNull(categories.clientId), eq(categories.clientId, clientId)),
+    }),
+  ]);
+
+  const categoryNameById = new Map(categoryRows.map((c) => [c.id, c.name]));
+  const cycleSummary = results.find((r) => r.kind === "cycle_summary") ?? null;
+  const categorySummaries = results
+    .filter((r) => r.kind === "category_summary")
+    .map((r) => ({ ...r, categoryName: (r.categoryId && categoryNameById.get(r.categoryId)) || "Categoria" }));
+
+  return { ...result, cycleSummary, categorySummaries };
 }
