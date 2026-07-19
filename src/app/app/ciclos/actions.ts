@@ -6,11 +6,27 @@ import { db } from "@/db/client";
 import { cycles, questionnaires, questions, responses } from "@/db/schema";
 import { requireGestor } from "@/lib/auth/session";
 
+// datetime-local não carrega fuso; interpreta o valor no fuso do browser do
+// gestor (tzOffset em minutos, padrão getTimezoneOffset). Sem offset, cai no
+// fuso do servidor (comportamento antigo).
+function parseLocalDatetime(value: string, tzOffsetRaw: string): Date {
+  const tzOffset = Number(tzOffsetRaw);
+  if (!tzOffsetRaw || !Number.isFinite(tzOffset)) return new Date(value);
+  const iso = value.length === 16 ? `${value}:00` : value; // datetime-local pode omitir segundos
+  return new Date(Date.parse(`${iso}Z`) + tzOffset * 60_000);
+}
+
+function parseMaxResponses(raw: string): number | null {
+  const n = Number(raw);
+  return raw && Number.isFinite(n) && n >= 1 ? Math.floor(n) : null;
+}
+
 export async function openPublicCycle(formData: FormData) {
   const { clientId } = await requireGestor();
   const questionnaireId = String(formData.get("questionnaireId"));
   const endsAtRaw = String(formData.get("endsAt") ?? "");
   const maxResponsesRaw = String(formData.get("maxResponses") ?? "");
+  const tzOffsetRaw = String(formData.get("tzOffset") ?? "");
 
   // Garante que o questionário pertence ao client da sessão e está ativo antes
   // de contar perguntas e abrir o ciclo — evita abrir ciclo para questionário
@@ -38,8 +54,8 @@ export async function openPublicCycle(formData: FormData) {
       isPublic: true,
       publicToken: nanoid(16),
       questionCount,
-      endsAt: endsAtRaw ? new Date(endsAtRaw) : null,
-      maxResponses: maxResponsesRaw ? Number(maxResponsesRaw) : null,
+      endsAt: endsAtRaw ? parseLocalDatetime(endsAtRaw, tzOffsetRaw) : null,
+      maxResponses: parseMaxResponses(maxResponsesRaw),
       status: "open",
     })
     .returning();

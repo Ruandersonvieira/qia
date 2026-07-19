@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TzOffsetInput } from "@/components/tz-offset-input";
 import QuestionForm from "./question-form";
 import QuestionList from "./question-list";
 
@@ -115,6 +116,7 @@ export default async function QuestionarioDetailPage({
 
         <form action={openPublicCycle} className="space-y-4 rounded-lg border p-4">
           <input type="hidden" name="questionnaireId" value={id} />
+          <TzOffsetInput />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
