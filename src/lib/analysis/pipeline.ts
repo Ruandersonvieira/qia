@@ -59,13 +59,22 @@ export async function runAnalysis(cycleId: string, complete: CompleteJSON = comp
       ? await db.query.answers.findMany({ where: inArray(answers.responseId, respRows.map((r) => r.id)) })
       : [];
 
-    // mascarar free_text que ainda não tem maskedText e persistir
+    // mascarar free_text que ainda não tem maskedText e persistir (em lote,
+    // não um UPDATE por linha — ciclos grandes têm centenas de textos)
     const freeTextQuestionIds = new Set(qRows.filter((r) => r.q.answerType === "free_text").map((r) => r.q.id));
-    for (const a of answerRows) {
-      if (freeTextQuestionIds.has(a.questionId) && a.valueText && !a.maskedText) {
-        a.maskedText = maskNames(a.valueText);
-        await db.update(answers).set({ maskedText: a.maskedText, updatedAt: new Date() }).where(eq(answers.id, a.id));
-      }
+    const toMask = answerRows.filter(
+      (a) => freeTextQuestionIds.has(a.questionId) && a.valueText && !a.maskedText
+    );
+    for (const a of toMask) a.maskedText = maskNames(a.valueText!);
+    const BATCH = 25;
+    for (let i = 0; i < toMask.length; i += BATCH) {
+      await Promise.all(
+        toMask
+          .slice(i, i + BATCH)
+          .map((a) =>
+            db.update(answers).set({ maskedText: a.maskedText, updatedAt: new Date() }).where(eq(answers.id, a.id))
+          )
+      );
     }
 
     // regra do N mínimo: pergunta sensível fora se responseCount < minN
