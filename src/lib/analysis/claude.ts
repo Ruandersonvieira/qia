@@ -14,6 +14,17 @@ export const completeJSON: CompleteJSON = async (prompt) => {
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("");
-  const jsonText = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-  return JSON.parse(jsonText);
+  return parseJsonResponse(text);
 };
+
+/** Extrai JSON da resposta do modelo, tolerando fence markdown e whitespace nas bordas. */
+export function parseJsonResponse(text: string): unknown {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  const jsonText = (fenced ? fenced[1] : trimmed).trim();
+  try {
+    return JSON.parse(jsonText);
+  } catch {
+    throw new Error(`Resposta do modelo não é JSON válido: ${jsonText.slice(0, 200)}`);
+  }
+}
