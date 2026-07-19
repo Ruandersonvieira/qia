@@ -1,1 +1,1 @@
-process.env.DATABASE_URL = "postgres://qia:qia@localhost:5432/qia_test";
+process.env.DATABASE_URL = "postgres://qia:qia@localhost:5434/qia_test";
