@@ -2,7 +2,11 @@ import { SignJWT, jwtVerify } from "jose";
 
 export const MASTER_COOKIE = "qia_master";
 
-const secret = () => new TextEncoder().encode(process.env.MASTER_SESSION_SECRET!);
+const secret = () => {
+  const value = process.env.MASTER_SESSION_SECRET;
+  if (!value) throw new Error("MASTER_SESSION_SECRET não definido");
+  return new TextEncoder().encode(value);
+};
 
 export async function createMasterToken(masterUserId: string): Promise<string> {
   return new SignJWT({})
