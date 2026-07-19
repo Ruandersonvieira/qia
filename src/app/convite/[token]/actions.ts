@@ -1,8 +1,8 @@
 "use server";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { user as authUser, users } from "@/db/schema";
 import { auth } from "@/lib/auth/auth";
 
 export async function acceptInvite(
@@ -20,19 +20,34 @@ export async function acceptInvite(
     return { error: "Convite inválido ou expirado" };
   }
 
-  let signup;
+  let authUserId: string;
   try {
-    signup = await auth.api.signUpEmail({
+    const signup = await auth.api.signUpEmail({
       body: { email: invited.email, password, name: invited.name },
     });
-  } catch {
-    return { error: "Não foi possível concluir o cadastro. Este email pode já possuir uma conta ativa — contate o suporte." };
+    authUserId = signup.user.id;
+  } catch (err) {
+    console.error("acceptInvite: signUpEmail falhou", err);
+    // Recuperação: se um aceite anterior criou o auth user mas caiu antes de
+    // ativar o convite, adota o auth user existente do mesmo email.
+    const existing = await db.query.user.findFirst({
+      where: sql`lower(${authUser.email}) = lower(${invited.email})`,
+    });
+    if (!existing) {
+      return { error: "Não foi possível concluir o cadastro. Tente novamente ou contate o suporte." };
+    }
+    authUserId = existing.id;
   }
 
-  await db
-    .update(users)
-    .set({ authUserId: signup.user.id, status: "active", inviteToken: null, inviteExpiresAt: null })
-    .where(eq(users.id, invited.id));
+  try {
+    await db
+      .update(users)
+      .set({ authUserId, status: "active", inviteToken: null, inviteExpiresAt: null })
+      .where(eq(users.id, invited.id));
+  } catch (err) {
+    console.error("acceptInvite: falha ao ativar usuário convidado", err);
+    return { error: "Não foi possível concluir o cadastro. Tente novamente ou contate o suporte." };
+  }
 
   redirect("/app/login?convite=ok");
 }
