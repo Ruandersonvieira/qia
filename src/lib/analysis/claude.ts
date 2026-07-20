@@ -2,6 +2,9 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export type CompleteJSON = (prompt: string) => Promise<unknown>;
 
+export type ChatMessage = { role: "user" | "assistant"; content: string };
+export type CompleteText = (params: { system: string; messages: ChatMessage[] }) => Promise<string>;
+
 // cliente lazy: instanciar no import quebraria quando só a chave do outro
 // provider está configurada (o SDK exige ANTHROPIC_API_KEY no construtor)
 let client: Anthropic | undefined;
@@ -18,6 +21,20 @@ export const completeJSON: CompleteJSON = async (prompt) => {
     .map((b) => b.text)
     .join("");
   return parseJsonResponse(text);
+};
+
+export const completeText: CompleteText = async ({ system, messages }) => {
+  client ??= new Anthropic();
+  const message = await client.messages.create({
+    model: "claude-sonnet-5",
+    max_tokens: 2000,
+    system,
+    messages,
+  });
+  return message.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
 };
 
 /** Extrai JSON da resposta do modelo, tolerando fence markdown e whitespace nas bordas. */

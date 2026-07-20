@@ -9,6 +9,7 @@ const items = [
   { href: "/app", label: "Início", exact: true },
   { href: "/app/questionarios", label: "Questionários" },
   { href: "/app/categorias", label: "Categorias" },
+  { href: "/app/assistente", label: "Assistente IA" },
 ];
 
 export function AppSidebar({ userName }: { userName: string }) {

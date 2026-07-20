@@ -5,3 +5,4 @@ export * from "./questionnaires";
 export * from "./cycles";
 export * from "./analysis";
 export * from "./auth";
+export * from "./chat";

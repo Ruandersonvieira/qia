@@ -13,3 +13,4 @@ export const cycleStatus = pgEnum("cycle_status", ["scheduled", "open", "closed"
 export const responseStatus = pgEnum("response_status", ["in_progress", "submitted"]);
 export const analysisKind = pgEnum("analysis_kind", ["category_summary", "cycle_summary", "persona"]);
 export const trendEnum = pgEnum("trend", ["up", "stable", "down"]);
+export const chatRole = pgEnum("chat_role", ["user", "assistant"]);
