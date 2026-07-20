@@ -2,9 +2,12 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export type CompleteJSON = (prompt: string) => Promise<unknown>;
 
-const client = new Anthropic();
+// cliente lazy: instanciar no import quebraria quando só a chave do outro
+// provider está configurada (o SDK exige ANTHROPIC_API_KEY no construtor)
+let client: Anthropic | undefined;
 
 export const completeJSON: CompleteJSON = async (prompt) => {
+  client ??= new Anthropic();
   const message = await client.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 2000,

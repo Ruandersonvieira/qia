@@ -6,7 +6,8 @@ import {
 import { aggregateByCategory, type AnswerInput, type QuestionInput } from "./aggregate";
 import { maskNames } from "./mask";
 import { buildCategoryPrompt, buildCyclePrompt, type CategoryAnalysis, type CycleAnalysis } from "./prompts";
-import { completeJSON, type CompleteJSON } from "./claude";
+import type { CompleteJSON } from "./claude";
+import { completeJSON } from "./provider";
 
 /** Valida minimamente o shape retornado pelo modelo (após cast) — evita gravar lixo
  * silenciosamente e melhora o path de erro quando o modelo foge do formato pedido. */
