@@ -82,6 +82,18 @@ Sobe em `http://localhost:3000` (cai para `3001` se a 3000 estiver ocupada).
 
 Os testes de integração usam o Postgres do `docker-compose.yml`; garanta que ele esteja de pé antes de rodar `pnpm test`.
 
+## Logins de desenvolvimento
+
+Credenciais locais (banco dev na porta 5434 — nunca usar em produção):
+
+| Usuário                  | Senha            | Onde loga     | Origem                                                    |
+| ------------------------- | ----------------- | -------------- | ---------------------------------------------------------- |
+| `admin@qia.local`         | `admin123`        | `/admin/login` | Seed padrão (`pnpm seed:master`, ver Setup local)          |
+| `smoke@qia.local`         | `Smoke123!`       | `/admin/login` | Admin master criado pelo smoke test E2E (2026-07-19)       |
+| `ana+*@smoke.test`        | `SenhaForte123!`  | `/app/login`   | Gestores dos clients `smoke-*` criados pelo smoke test     |
+
+O seed do master é idempotente: rodar `MASTER_EMAIL=... MASTER_PASSWORD=... pnpm seed:master` de novo atualiza a senha.
+
 ## Mapa de rotas
 
 | Rota                              | Quem acessa       | Descrição                                                              |
