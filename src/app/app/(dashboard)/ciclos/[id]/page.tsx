@@ -5,22 +5,7 @@ import { getCycle, closeAndAnalyze } from "../actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import ShareLink from "./share-link";
-
-const CYCLE_STATUS_LABELS: Record<string, string> = {
-  scheduled: "Agendado",
-  open: "Aberto",
-  closed: "Fechado",
-  processing: "Analisando...",
-  analyzed: "Analisado",
-};
-
-const CYCLE_STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline"> = {
-  scheduled: "outline",
-  open: "default",
-  closed: "secondary",
-  processing: "secondary",
-  analyzed: "outline",
-};
+import { CYCLE_STATUS_LABELS, CYCLE_STATUS_VARIANTS } from "../status";
 
 export default async function CicloDetailPage({
   params,

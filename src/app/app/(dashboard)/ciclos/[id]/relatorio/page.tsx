@@ -5,14 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { QuestionAggregate } from "@/lib/analysis/aggregate";
 import type { Recommendation } from "@/db/schema";
 import MetricChart from "./metric-chart";
-
-function scoreColorClass(score: number): string {
-  if (score >= 70) return "text-green-600";
-  if (score >= 40) return "text-amber-600";
-  return "text-red-600";
-}
-
-const TREND_ICON: Record<string, string> = { up: "↑", stable: "↔", down: "↓" };
+import { TREND_ICON, formatPeriod, scoreColorClass } from "../../status";
 
 function RecommendationList({ recommendations }: { recommendations: Recommendation[] }) {
   if (recommendations.length === 0) return null;
@@ -26,14 +19,6 @@ function RecommendationList({ recommendations }: { recommendations: Recommendati
       ))}
     </ol>
   );
-}
-
-const dateFormatter = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-
-function formatPeriod(startsAt: Date, endsAt: Date | null): string {
-  const start = dateFormatter.format(startsAt);
-  if (!endsAt) return `desde ${start}`;
-  return `${start} a ${dateFormatter.format(endsAt)}`;
 }
 
 export default async function RelatorioPage({
