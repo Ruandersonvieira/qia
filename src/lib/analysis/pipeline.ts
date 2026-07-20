@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, lt, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   analysisResults, answers, categories, cycles, questionOptions, questions, responses, usageRecords,
@@ -8,6 +8,7 @@ import { maskNames } from "./mask";
 import { buildCategoryPrompt, buildCyclePrompt, type CategoryAnalysis, type CycleAnalysis } from "./prompts";
 import type { CompleteJSON } from "./claude";
 import { completeJSON } from "./provider";
+import { computeTrend } from "./trend";
 
 /** Valida minimamente o shape retornado pelo modelo (após cast) — evita gravar lixo
  * silenciosamente e melhora o path de erro quando o modelo foge do formato pedido. */
@@ -114,12 +115,33 @@ export async function runAnalysis(cycleId: string, complete: CompleteJSON = comp
     )) as CycleAnalysis;
     assertCycleAnalysis(cycleAnalysis);
 
+    // trend: compara com o último ciclo analisado do mesmo questionário
+    const prevCycle = await db.query.cycles.findFirst({
+      where: and(
+        eq(cycles.questionnaireId, cycle.questionnaireId),
+        eq(cycles.status, "analyzed"),
+        ne(cycles.id, cycleId),
+        lt(cycles.startsAt, cycle.startsAt)
+      ),
+      orderBy: (c, { desc }) => [desc(c.startsAt)],
+    });
+    const prevScoreByCategory = new Map<string, number>();
+    if (prevCycle) {
+      const prevResults = await db.query.analysisResults.findMany({
+        where: and(eq(analysisResults.cycleId, prevCycle.id), eq(analysisResults.kind, "category_summary")),
+      });
+      for (const r of prevResults) {
+        if (r.categoryId && r.score != null) prevScoreByCategory.set(r.categoryId, Number(r.score));
+      }
+    }
+
     await db.transaction(async (tx) => {
       await tx.delete(analysisResults).where(eq(analysisResults.cycleId, cycleId)); // idempotência
       for (const c of categoryOutputs) {
         await tx.insert(analysisResults).values({
           clientId: cycle.clientId, cycleId, categoryId: c.categoryId, kind: "category_summary",
           summary: c.analysis.summary, score: String(c.analysis.score),
+          trend: computeTrend(c.analysis.score, prevScoreByCategory.get(c.categoryId) ?? null),
           recommendations: c.analysis.recommendations, rawMetrics: c.rawMetrics,
         });
       }
