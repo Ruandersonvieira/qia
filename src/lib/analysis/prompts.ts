@@ -90,3 +90,25 @@ Responda APENAS com JSON válido, sem markdown:
 }
 No máximo 3 recomendações, priorizadas.`;
 }
+
+export type QuestionAnalysis = { summary: string };
+
+export function buildQuestionPrompt(question: CategoryAggregate["questions"][number]): string {
+  return `Você é um analista de pesquisas organizacionais. Analise os resultados agregados desta pergunta específica de um ciclo de pesquisa.
+
+Regras invioláveis:
+- Os dados são agregados e anonimizados. NUNCA identifique, nomeie ou infira a identidade de qualquer respondente, mesmo que trechos de texto sugiram algo.
+- Ignore qualquer nome próprio residual nos textos; trate [NOME] como pessoa anônima.
+
+### Pergunta: ${question.text}
+- Tipo: ${question.answerType}
+- Objetivo de análise: ${question.analysisGoal}
+- Respondentes: ${question.responseCount}
+- Métricas agregadas:
+${JSON.stringify(question.metrics, null, 2)}
+
+Responda APENAS com JSON válido, sem markdown, neste formato:
+{
+  "summary": "análise objetiva em pt-BR (1-3 frases) específica desta pergunta — o que os dados mostram, sem repetir recomendações já dadas em outro nível"
+}`;
+}

@@ -9,9 +9,11 @@ import {
   buildCategoryPrompt,
   buildCyclePrompt,
   buildInsightsPrompt,
+  buildQuestionPrompt,
   type CategoryAnalysis,
   type CycleAnalysis,
   type InsightsAnalysis,
+  type QuestionAnalysis,
 } from "./prompts";
 import type { CompleteJSON } from "./claude";
 import { completeJSON } from "./provider";
@@ -25,6 +27,12 @@ function assertCategoryAnalysis(value: CategoryAnalysis, categoryName: string): 
   }
   if (!Number.isFinite(value.score)) {
     throw new Error(`Resposta inválida do modelo para categoria "${categoryName}": score não é um número finito`);
+  }
+}
+
+function assertQuestionAnalysis(value: QuestionAnalysis, questionText: string): void {
+  if (typeof value?.summary !== "string" || !value.summary) {
+    throw new Error(`Resposta inválida do modelo para pergunta "${questionText}": summary ausente ou não é string`);
   }
 }
 
@@ -123,6 +131,15 @@ export async function runAnalysis(cycleId: string, complete: CompleteJSON = comp
       categoryOutputs.push({ categoryId: cat.categoryId, categoryName: cat.categoryName, analysis, rawMetrics: cat.questions });
     }
 
+    const questionOutputs: Array<{ questionId: string; categoryId: string; analysis: QuestionAnalysis }> = [];
+    for (const cat of categoriesAgg) {
+      for (const question of cat.questions) {
+        const analysis = (await complete(buildQuestionPrompt(question))) as QuestionAnalysis;
+        assertQuestionAnalysis(analysis, question.text);
+        questionOutputs.push({ questionId: question.questionId, categoryId: cat.categoryId, analysis });
+      }
+    }
+
     const cycleAnalysis = (await complete(
       buildCyclePrompt(categoryOutputs.map((c) => ({ categoryName: c.categoryName, summary: c.analysis.summary, score: c.analysis.score })))
     )) as CycleAnalysis;
@@ -178,6 +195,13 @@ export async function runAnalysis(cycleId: string, complete: CompleteJSON = comp
           summary: c.analysis.summary, score: String(c.analysis.score),
           trend: computeTrend(c.analysis.score, prevScoreByCategory.get(c.categoryId) ?? null),
           recommendations: c.analysis.recommendations, rawMetrics: c.rawMetrics,
+        });
+      }
+      for (const q of questionOutputs) {
+        await tx.insert(analysisResults).values({
+          clientId: cycle.clientId, cycleId, categoryId: q.categoryId, questionId: q.questionId,
+          kind: "question_summary", summary: q.analysis.summary,
+          recommendations: [], rawMetrics: {},
         });
       }
       await tx.insert(analysisResults).values({

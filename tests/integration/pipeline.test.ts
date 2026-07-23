@@ -8,6 +8,9 @@ import { runAnalysis } from "@/lib/analysis/pipeline";
 let cycleId: string;
 
 const fakeComplete = async (prompt: string) => {
+  if (prompt.includes("análise objetiva")) {
+    return { summary: "Resumo específico da pergunta" };
+  }
   if (prompt.includes("insights")) {
     return { insights: [] };
   }
@@ -62,8 +65,23 @@ describe("runAnalysis", () => {
 
     const results = await db.query.analysisResults.findMany({ where: eq(analysisResults.cycleId, cycleId) });
     const kinds = results.map((r) => r.kind).sort();
-    // 1 category_summary (Clima) + 1 cycle_summary + 1 cycle_insights; Demografia excluída pelo N mínimo
-    expect(kinds).toEqual(["category_summary", "cycle_insights", "cycle_summary"]);
+    // 1 category_summary (Clima) + 1 cycle_summary + 1 cycle_insights + 2 question_summary
+    // (q1 scale e q2 free_text incluídas; q3 fica fora por sensibilidade + N mínimo)
+    expect(kinds).toEqual([
+      "category_summary", "cycle_insights", "cycle_summary", "question_summary", "question_summary",
+    ]);
+
+    const questionSummaries = results.filter((r) => r.kind === "question_summary");
+    // escopado por questionnaireId: o texto sozinho não é único entre execuções
+    // acumuladas na base de teste (não há truncamento entre runs)
+    const q1 = await db.query.questions.findFirst({
+      where: (q, { eq: eqf, and: andf }) => andf(eqf(q.questionnaireId, cycle!.questionnaireId), eqf(q.text, "Ambiente?")),
+    });
+    const q2 = await db.query.questions.findFirst({
+      where: (q, { eq: eqf, and: andf }) => andf(eqf(q.questionnaireId, cycle!.questionnaireId), eqf(q.text, "Comentários?")),
+    });
+    expect(questionSummaries.map((r) => r.questionId).sort()).toEqual([q1!.id, q2!.id].sort());
+    expect(questionSummaries.every((r) => r.summary === "Resumo específico da pergunta")).toBe(true);
 
     const [usage] = await db.query.usageRecords.findMany({ where: eq(usageRecords.cycleId, cycleId) });
     expect(usage.questionCount).toBe(3);
@@ -80,7 +98,7 @@ describe("runAnalysis", () => {
     await db.update(cycles).set({ status: "closed" }).where(eq(cycles.id, cycleId));
     await runAnalysis(cycleId, fakeComplete);
     const results = await db.query.analysisResults.findMany({ where: eq(analysisResults.cycleId, cycleId) });
-    expect(results).toHaveLength(3);
+    expect(results).toHaveLength(5); // 3 (categoria+ciclo+insights) + 2 question_summary
   });
 
   it("em erro, volta status pra closed e grava analysisError", async () => {
