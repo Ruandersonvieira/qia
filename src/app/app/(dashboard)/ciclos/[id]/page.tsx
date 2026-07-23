@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BarChart3, ClipboardList, Inbox, Link2, RefreshCw, TrendingUp } from "lucide-react";
 import { requireGestor } from "@/lib/auth/session";
-import { getCycle, getCycleReport, getCycleRawSummary, closeAndAnalyze } from "../actions";
+import { getCycle, getCycleReport, getCycleRawSummary, closeCycle, analyzeCycle } from "../actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,18 +72,18 @@ export default async function CicloDetailPage({
 
       <div className="flex gap-2">
         {cycle.status === "open" && (
-          <form action={closeAndAnalyze}>
+          <form action={closeCycle}>
             <input type="hidden" name="cycleId" value={cycle.id} />
             <Button type="submit" variant="default">
-              Fechar e analisar
+              Fechar ciclo
             </Button>
           </form>
         )}
-        {cycle.status === "closed" && cycle.analysisError && (
-          <form action={closeAndAnalyze}>
+        {cycle.status === "closed" && (
+          <form action={analyzeCycle}>
             <input type="hidden" name="cycleId" value={cycle.id} />
             <Button type="submit" variant="default">
-              Tentar análise novamente
+              Analisar com IA
             </Button>
           </form>
         )}
