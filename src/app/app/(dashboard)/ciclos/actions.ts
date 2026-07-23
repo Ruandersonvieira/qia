@@ -244,11 +244,20 @@ export async function getCycle(id: string) {
   return { cycle, questionnaire, responseCount };
 }
 
-export async function closeAndAnalyze(formData: FormData) {
+export async function closeCycle(formData: FormData) {
   const { clientId } = await requireGestor();
   const cycleId = String(formData.get("cycleId"));
   const cycle = await db.query.cycles.findFirst({ where: and(eq(cycles.id, cycleId), eq(cycles.clientId, clientId)) });
-  if (!cycle || (cycle.status !== "open" && cycle.status !== "closed")) return;
+  if (!cycle || cycle.status !== "open") return;
+  await db.update(cycles).set({ status: "closed", updatedAt: new Date() }).where(eq(cycles.id, cycleId));
+  revalidatePath(`/app/ciclos/${cycleId}`);
+}
+
+export async function analyzeCycle(formData: FormData) {
+  const { clientId } = await requireGestor();
+  const cycleId = String(formData.get("cycleId"));
+  const cycle = await db.query.cycles.findFirst({ where: and(eq(cycles.id, cycleId), eq(cycles.clientId, clientId)) });
+  if (!cycle || cycle.status !== "closed") return;
   try {
     await runAnalysis(cycleId);
   } catch {
@@ -278,6 +287,10 @@ export async function getCycleReport(id: string) {
   const categoryNameById = new Map(categoryRows.map((c) => [c.id, c.name]));
   const cycleSummary = results.find((r) => r.kind === "cycle_summary") ?? null;
   const insights = results.find((r) => r.kind === "cycle_insights") ?? null;
+  const questionAnalyses: Record<string, string> = {};
+  for (const r of results) {
+    if (r.kind === "question_summary" && r.questionId) questionAnalyses[r.questionId] = r.summary;
+  }
   const categorySummaries = results
     .filter((r) => r.kind === "category_summary")
     .map((r) => ({ ...r, categoryName: (r.categoryId && categoryNameById.get(r.categoryId)) || "Categoria" }));
@@ -293,6 +306,7 @@ export async function getCycleReport(id: string) {
     cycleSummary,
     categorySummaries,
     insights,
+    questionAnalyses,
     kpis: {
       overallScore: cycleSummary?.score != null ? Number(cycleSummary.score) : null,
       overallTrend: cycleSummary?.trend ?? null,
