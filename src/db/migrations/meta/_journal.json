@@ -43,6 +43,13 @@
       "when": 1784739912758,
       "tag": "0005_little_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784772157861,
+      "tag": "0006_talented_switch",
+      "breakpoints": true
     }
   ]
 }

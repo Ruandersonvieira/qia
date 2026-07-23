@@ -2,7 +2,7 @@ import { pgTable, uuid, text, timestamp, integer, numeric, jsonb, date, uniqueIn
 import { analysisKind, trendEnum } from "./enums";
 import { clients } from "./clients";
 import { cycles } from "./cycles";
-import { categories } from "./questionnaires";
+import { categories, questions } from "./questionnaires";
 
 export type Recommendation = { title: string; description: string };
 
@@ -13,6 +13,7 @@ export const analysisResults = pgTable(
     clientId: uuid("client_id").notNull().references(() => clients.id),
     cycleId: uuid("cycle_id").notNull().references(() => cycles.id),
     categoryId: uuid("category_id").references(() => categories.id), // null = cycle_summary
+    questionId: uuid("question_id").references(() => questions.id), // preenchido só quando kind = question_summary
     kind: analysisKind("kind").notNull(),
     summary: text("summary").notNull(),
     score: numeric("score"),
