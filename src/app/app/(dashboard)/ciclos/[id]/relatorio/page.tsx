@@ -44,17 +44,6 @@ export default async function RelatorioPage({
     >
       <KpiRow kpis={kpis} responseCount={responseCount} />
 
-      {categoryScores.length > 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Comparativo entre categorias</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CategoryComparisonChart data={categoryScores} />
-          </CardContent>
-        </Card>
-      )}
-
       {insights && (insights.recommendations as Recommendation[]).length > 0 && (
         <Card>
           <CardHeader>
@@ -64,7 +53,21 @@ export default async function RelatorioPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <RecommendationList recommendations={insights.recommendations as Recommendation[]} />
+            <RecommendationList
+              recommendations={insights.recommendations as Recommendation[]}
+              variant="featured"
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {categoryScores.length > 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Comparativo entre categorias</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CategoryComparisonChart data={categoryScores} />
           </CardContent>
         </Card>
       )}
