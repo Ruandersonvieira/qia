@@ -22,7 +22,7 @@ export default async function RelatorioPage({
   const { id } = await params;
   const report = await getCycleReport(id);
   if (!report) notFound();
-  const { cycle, questionnaire, responseCount, cycleSummary, categorySummaries, insights, kpis, questionRanking } = report;
+  const { cycle, questionnaire, responseCount, cycleSummary, categorySummaries, insights, kpis, questionRanking, questionAnalyses } = report;
   if (!questionnaire) notFound();
 
   const categoryScores = categorySummaries
@@ -123,6 +123,9 @@ export default async function RelatorioPage({
                   {rawMetrics.map((question) => (
                     <div key={question.questionId} className="space-y-2">
                       <p className="text-sm font-medium">{question.text}</p>
+                      {questionAnalyses[question.questionId] && (
+                        <p className="text-sm italic text-muted-foreground">{questionAnalyses[question.questionId]}</p>
+                      )}
                       <MetricChart question={question} />
                     </div>
                   ))}
