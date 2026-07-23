@@ -4,9 +4,14 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { answers, questionOptions, questionnaires, questions } from "@/db/schema";
 import { requireGestor } from "@/lib/auth/session";
+import type { ActionResult } from "@/lib/toast";
 
 const ANSWER_TYPES = ["scale", "single_choice", "multi_choice", "nps", "free_text", "boolean"] as const;
 type AnswerType = (typeof ANSWER_TYPES)[number];
+
+function toOptionValue(label: string) {
+  return label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_");
+}
 
 // clientId é derivado da sessão via requireGestor() — não aceitar clientId como
 // argumento externo, pois esta função é chamável como endpoint público (arquivo "use server").
@@ -46,7 +51,7 @@ export async function listQuestions(questionnaireId: string) {
   }));
 }
 
-export async function createQuestion(formData: FormData) {
+export async function createQuestion(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const { clientId } = await requireGestor();
   const questionnaireId = String(formData.get("questionnaireId"));
 
@@ -54,10 +59,12 @@ export async function createQuestion(formData: FormData) {
   const questionnaire = await db.query.questionnaires.findFirst({
     where: and(eq(questionnaires.id, questionnaireId), eq(questionnaires.clientId, clientId)),
   });
-  if (!questionnaire) return;
+  if (!questionnaire) return { ok: false, error: "Questionário não encontrado" };
 
   const answerTypeRaw = String(formData.get("answerType"));
-  if (!(ANSWER_TYPES as readonly string[]).includes(answerTypeRaw)) return;
+  if (!(ANSWER_TYPES as readonly string[]).includes(answerTypeRaw)) {
+    return { ok: false, error: "Tipo de resposta inválido" };
+  }
   const answerType = answerTypeRaw as AnswerType;
 
   const [{ max }] = await db
@@ -103,12 +110,84 @@ export async function createQuestion(formData: FormData) {
           questionId: q.id,
           position: i + 1,
           label,
-          value: label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_"),
+          value: toOptionValue(label),
         }))
       );
     }
   }
   revalidatePath(`/app/questionarios/${questionnaireId}`);
+  return { ok: true };
+}
+
+export async function updateQuestion(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const { clientId } = await requireGestor();
+  const id = String(formData.get("id"));
+  const questionnaireId = String(formData.get("questionnaireId"));
+
+  const existing = await db.query.questions.findFirst({
+    where: and(eq(questions.id, id), eq(questions.clientId, clientId)),
+  });
+  if (!existing) return { ok: false, error: "Pergunta não encontrada" };
+
+  const hasAnswers = !!(await db.query.answers.findFirst({ where: eq(answers.questionId, id) }));
+
+  // Pergunta com resposta não pode ter o tipo de resposta alterado — ignora o
+  // valor enviado e mantém o original, independente do que o client mandar.
+  let answerType = existing.answerType;
+  if (!hasAnswers) {
+    const raw = String(formData.get("answerType"));
+    if ((ANSWER_TYPES as readonly string[]).includes(raw)) answerType = raw as AnswerType;
+  }
+
+  const config =
+    answerType === "scale"
+      ? {
+          min: Number(formData.get("scaleMin") ?? 1),
+          max: Number(formData.get("scaleMax") ?? 5),
+          minLabel: String(formData.get("scaleMinLabel") ?? ""),
+          maxLabel: String(formData.get("scaleMaxLabel") ?? ""),
+        }
+      : {};
+
+  await db
+    .update(questions)
+    .set({
+      categoryId: String(formData.get("categoryId")),
+      text: String(formData.get("text") ?? "").trim(),
+      analysisGoal: String(formData.get("analysisGoal") ?? "").trim(),
+      howToWork: String(formData.get("howToWork") ?? "").trim(),
+      answerType,
+      isRequired: formData.get("isRequired") === "on",
+      isSensitive: formData.get("isSensitive") === "on",
+      config,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(questions.id, id), eq(questions.clientId, clientId)));
+
+  // Opções só são substituídas se a pergunta ainda não tem resposta —
+  // com resposta, value_options já gravado em answers ficaria órfão.
+  if (!hasAnswers && (answerType === "single_choice" || answerType === "multi_choice")) {
+    const labels = String(formData.get("options") ?? "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    await db.transaction(async (tx) => {
+      await tx.delete(questionOptions).where(eq(questionOptions.questionId, id));
+      if (labels.length) {
+        await tx.insert(questionOptions).values(
+          labels.map((label, i) => ({
+            questionId: id,
+            position: i + 1,
+            label,
+            value: toOptionValue(label),
+          }))
+        );
+      }
+    });
+  }
+
+  revalidatePath(`/app/questionarios/${questionnaireId}`);
+  return { ok: true };
 }
 
 export async function archiveQuestion(formData: FormData) {

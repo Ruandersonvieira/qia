@@ -1,18 +1,11 @@
 import { cookies } from "next/headers";
 import { and, eq, inArray } from "drizzle-orm";
+import { Lock, PartyPopper } from "lucide-react";
 import { db } from "@/db/client";
-import { questions, questionOptions, responses } from "@/db/schema";
+import { categories, questions, questionOptions, responses } from "@/db/schema";
 import { getOpenCycleByToken } from "@/lib/public/submit-response";
 import ResponseForm, { type QuestionForForm } from "./response-form";
-
-function StatusScreen({ title, message }: { title: string; message: string }) {
-  return (
-    <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-2 p-8 text-center">
-      <h1 className="text-xl font-semibold">{title}</h1>
-      <p className="text-sm text-muted-foreground">{message}</p>
-    </div>
-  );
-}
+import { StatusScreen } from "./status-screen";
 
 export default async function PublicResponsePage({
   params,
@@ -24,7 +17,7 @@ export default async function PublicResponsePage({
   // Sem sessão: rota pública. Não usar requireGestor aqui.
   const cycle = await getOpenCycleByToken(token);
   if (!cycle) {
-    return <StatusScreen title="Pesquisa encerrada" message="Esta pesquisa está encerrada." />;
+    return <StatusScreen icon={Lock} title="Pesquisa encerrada" message="Esta pesquisa está encerrada." />;
   }
 
   // O cookie qia_fp só existe depois de um envio anterior (é criado dentro da
@@ -37,7 +30,7 @@ export default async function PublicResponsePage({
       where: and(eq(responses.cycleId, cycle.id), eq(responses.sessionFingerprint, fp)),
     });
     if (existing) {
-      return <StatusScreen title="Você já respondeu" message="Obrigado pela participação!" />;
+      return <StatusScreen icon={PartyPopper} title="Você já respondeu" message="Obrigado pela participação!" />;
     }
   }
 
@@ -64,12 +57,19 @@ export default async function PublicResponsePage({
     else optionsByQuestion.set(o.questionId, [o]);
   }
 
+  const categoryIds = [...new Set(activeQuestions.map((q) => q.categoryId))];
+  const categoryRows = categoryIds.length
+    ? await db.query.categories.findMany({ where: inArray(categories.id, categoryIds) })
+    : [];
+  const categoryNameById = new Map(categoryRows.map((c) => [c.id, c.name]));
+
   const formQuestions: QuestionForForm[] = activeQuestions.map((q) => ({
     id: q.id,
     text: q.text,
     answerType: q.answerType,
     isRequired: q.isRequired,
     config: q.config,
+    categoryName: categoryNameById.get(q.categoryId) ?? "Geral",
     options: (optionsByQuestion.get(q.id) ?? []).map((o) => ({ id: o.id, label: o.label, value: o.value })),
   }));
 

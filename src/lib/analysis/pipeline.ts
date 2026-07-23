@@ -3,9 +3,16 @@ import { db } from "@/db/client";
 import {
   analysisResults, answers, categories, cycles, questionOptions, questions, responses, usageRecords,
 } from "@/db/schema";
-import { aggregateByCategory, type AnswerInput, type QuestionInput } from "./aggregate";
+import { aggregateByCategory, type AnswerInput, type CategoryAggregate, type QuestionInput } from "./aggregate";
 import { maskNames } from "./mask";
-import { buildCategoryPrompt, buildCyclePrompt, type CategoryAnalysis, type CycleAnalysis } from "./prompts";
+import {
+  buildCategoryPrompt,
+  buildCyclePrompt,
+  buildInsightsPrompt,
+  type CategoryAnalysis,
+  type CycleAnalysis,
+  type InsightsAnalysis,
+} from "./prompts";
 import type { CompleteJSON } from "./claude";
 import { completeJSON } from "./provider";
 import { computeTrend } from "./trend";
@@ -24,6 +31,12 @@ function assertCategoryAnalysis(value: CategoryAnalysis, categoryName: string): 
 function assertCycleAnalysis(value: CycleAnalysis): void {
   if (typeof value?.summary !== "string" || !value.summary) {
     throw new Error("Resposta inválida do modelo para o resumo do ciclo: summary ausente ou não é string");
+  }
+}
+
+function assertInsightsAnalysis(value: InsightsAnalysis): void {
+  if (!Array.isArray(value?.insights)) {
+    throw new Error("Resposta inválida do modelo para os insights do ciclo: insights não é uma lista");
   }
 }
 
@@ -135,6 +148,28 @@ export async function runAnalysis(cycleId: string, complete: CompleteJSON = comp
       }
     }
 
+    // Nota geral do ciclo = média dos scores de categoria; guardada no próprio
+    // cycle_summary (colunas score/trend já existem na tabela, só não eram usadas
+    // por esse kind) — assim o KPI do relatório não precisa recalcular no read.
+    const overallScore = categoryOutputs.reduce((s, c) => s + c.analysis.score, 0) / categoryOutputs.length;
+    const prevOverallScores = [...prevScoreByCategory.values()];
+    const prevOverallScore = prevOverallScores.length
+      ? prevOverallScores.reduce((s, v) => s + v, 0) / prevOverallScores.length
+      : null;
+    const overallTrend = computeTrend(overallScore, prevOverallScore);
+
+    const insightsAnalysis = (await complete(
+      buildInsightsPrompt(
+        categoryOutputs.map((c) => ({
+          categoryName: c.categoryName,
+          score: c.analysis.score,
+          trend: computeTrend(c.analysis.score, prevScoreByCategory.get(c.categoryId) ?? null),
+          questions: c.rawMetrics as CategoryAggregate["questions"],
+        }))
+      )
+    )) as InsightsAnalysis;
+    assertInsightsAnalysis(insightsAnalysis);
+
     await db.transaction(async (tx) => {
       await tx.delete(analysisResults).where(eq(analysisResults.cycleId, cycleId)); // idempotência
       for (const c of categoryOutputs) {
@@ -148,6 +183,11 @@ export async function runAnalysis(cycleId: string, complete: CompleteJSON = comp
       await tx.insert(analysisResults).values({
         clientId: cycle.clientId, cycleId, categoryId: null, kind: "cycle_summary",
         summary: cycleAnalysis.summary, recommendations: cycleAnalysis.recommendations, rawMetrics: {},
+        score: String(overallScore), trend: overallTrend,
+      });
+      await tx.insert(analysisResults).values({
+        clientId: cycle.clientId, cycleId, categoryId: null, kind: "cycle_insights",
+        summary: "Insights do ciclo", recommendations: insightsAnalysis.insights, rawMetrics: {},
       });
 
       const period = new Date().toISOString().slice(0, 8) + "01"; // primeiro dia do mês corrente

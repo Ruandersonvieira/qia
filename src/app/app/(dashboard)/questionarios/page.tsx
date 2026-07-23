@@ -1,74 +1,78 @@
 import Link from "next/link";
+import { FileText, Inbox } from "lucide-react";
 import { requireGestor } from "@/lib/auth/session";
 import { listQuestionnaires } from "./actions";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "../_components/data-table";
+import { PageContainer } from "../_components/page-container";
+import { NewQuestionnaireDialog } from "./new-questionnaire-dialog";
+import { USE_CASE_LABELS, STATUS_LABELS, STATUS_VARIANTS } from "./status";
+import { parsePage, parseParam } from "../_components/paged-result";
 
-const USE_CASE_LABELS: Record<string, string> = {
-  clima: "Clima",
-  nr1: "NR-1",
-  market_research: "Pesquisa de mercado",
-  nps: "NPS",
-  other: "Outro",
-};
+type Questionnaire = Awaited<ReturnType<typeof listQuestionnaires>>["data"][number];
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Rascunho",
-  active: "Ativo",
-  archived: "Arquivado",
-};
+const columns: DataTableColumn<Questionnaire>[] = [
+  {
+    header: "Título",
+    cellClassName: "font-medium",
+    cell: (q) => (
+      <Link className="underline" href={`/app/questionarios/${q.id}`}>
+        {q.title}
+      </Link>
+    ),
+  },
+  {
+    header: "Caso de uso",
+    cell: (q) => (q.useCase ? USE_CASE_LABELS[q.useCase] : "—"),
+  },
+  {
+    header: "Status",
+    headerClassName: "w-28",
+    cell: (q) => <Badge variant={STATUS_VARIANTS[q.status]}>{STATUS_LABELS[q.status]}</Badge>,
+  },
+  {
+    header: "Perguntas",
+    headerClassName: "w-28",
+    cell: (q) => q.questionCount,
+  },
+];
 
-const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline"> = {
-  draft: "secondary",
-  active: "default",
-  archived: "outline",
-};
+const filters: DataTableFilter[] = [
+  {
+    label: "Status",
+    paramKey: "status",
+    options: Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label })),
+  },
+];
 
-export default async function QuestionariosPage() {
+export default async function QuestionariosPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireGestor();
-  const questionnaires = await listQuestionnaires();
+  const sp = await searchParams;
+  const { data, total } = await listQuestionnaires({
+    q: parseParam(sp.q),
+    status: parseParam(sp.status),
+    page: parsePage(sp.page),
+  });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 p-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Questionários</h1>
-        <Button render={<Link href="/app/questionarios/novo" />}>Novo questionário</Button>
-      </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Título</TableHead>
-            <TableHead>Caso de uso</TableHead>
-            <TableHead className="w-28">Status</TableHead>
-            <TableHead className="w-28">Perguntas</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {questionnaires.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={4} className="text-center text-muted-foreground">
-                Nenhum questionário criado ainda.
-              </TableCell>
-            </TableRow>
-          )}
-          {questionnaires.map((q) => (
-            <TableRow key={q.id}>
-              <TableCell className="font-medium">
-                <Link className="underline" href={`/app/questionarios/${q.id}`}>
-                  {q.title}
-                </Link>
-              </TableCell>
-              <TableCell>{q.useCase ? USE_CASE_LABELS[q.useCase] : "—"}</TableCell>
-              <TableCell>
-                <Badge variant={STATUS_VARIANTS[q.status]}>{STATUS_LABELS[q.status]}</Badge>
-              </TableCell>
-              <TableCell>{q.questionCount}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <PageContainer icon={FileText} title="Questionários">
+      <DataTable
+        columns={columns}
+        data={data}
+        total={total}
+        page={parsePage(sp.page)}
+        rowKey={(q) => q.id}
+        emptyIcon={Inbox}
+        emptyMessage="Nenhum questionário criado ainda."
+        searchParamKey="q"
+        filterPlaceholder="Buscar questionário…"
+        filters={filters}
+        action={<NewQuestionnaireDialog />}
+      />
+    </PageContainer>
   );
 }

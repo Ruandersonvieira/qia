@@ -1,5 +1,6 @@
 import { pgTable, uuid, text, timestamp, jsonb, uniqueIndex, index } from "drizzle-orm/pg-core";
-import { clientStatus, userRole, userStatus } from "./enums";
+import { billingCycleEnum, clientStatus, subscriptionStatusEnum, userRole, userStatus } from "./enums";
+import { plans } from "./billing";
 
 export type ClientSettings = { minAnonymityN: number };
 
@@ -9,6 +10,11 @@ export const clients = pgTable("clients", {
   slug: text("slug").notNull().unique(),
   status: clientStatus("status").notNull().default("active"),
   settings: jsonb("settings").$type<ClientSettings>().notNull().default({ minAnonymityN: 5 }),
+  planId: uuid("plan_id").references(() => plans.id),
+  billingCycle: billingCycleEnum("billing_cycle"),
+  asaasCustomerId: text("asaas_customer_id"),
+  asaasSubscriptionId: text("asaas_subscription_id"),
+  subscriptionStatus: subscriptionStatusEnum("subscription_status").notNull().default("none"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

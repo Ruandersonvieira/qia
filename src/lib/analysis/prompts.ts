@@ -11,6 +11,10 @@ export type CycleAnalysis = {
   recommendations: Array<{ title: string; description: string }>;
 };
 
+export type InsightsAnalysis = {
+  insights: Array<{ title: string; description: string }>;
+};
+
 export function buildCategoryPrompt(category: CategoryAggregate): string {
   const questionsBlock = category.questions
     .map((q) =>
@@ -41,6 +45,34 @@ Responda APENAS com JSON válido, sem markdown, neste formato:
   "recommendations": [{ "title": "ação curta", "description": "como executar, em pt-BR" }]
 }
 "score" é um número 0-100 representando a saúde geral da categoria (100 = excelente). Recomendações apenas quando os dados indicarem problema (0 a 3 itens).`;
+}
+
+export function buildInsightsPrompt(
+  categories: Array<{ categoryName: string; score: number; trend: "up" | "stable" | "down" | null; questions: CategoryAggregate["questions"] }>
+): string {
+  const block = categories
+    .map((c) => {
+      const questionsBlock = c.questions
+        .map((q) => `  - "${q.text}" (${q.answerType}, ${q.responseCount} respostas): ${JSON.stringify(q.metrics)}`)
+        .join("\n");
+      return `### ${c.categoryName} (score ${c.score}${c.trend ? `, tendência: ${c.trend}` : ""})\n${questionsBlock}`;
+    })
+    .join("\n\n");
+
+  return `Você é um analista de pesquisas organizacionais. Abaixo estão os dados agregados e anônimos de todas as categorias de um ciclo de pesquisa, incluindo as métricas de cada pergunta (inclusive trechos de texto livre já mascarados).
+
+Regras invioláveis:
+- Os dados são agregados e anonimizados. NUNCA identifique, nomeie ou infira a identidade de qualquer respondente.
+- Ignore qualquer nome próprio residual nos textos; trate [NOME] como pessoa anônima.
+- Não repita os resumos por categoria — o objetivo aqui é cruzar informações ENTRE categorias e perguntas que um resumo isolado não revela (ex: uma pergunta específica arrastando o score de uma categoria, um tema recorrente nos textos livres que conecta duas categorias, uma categoria sensível com poucos dados).
+
+${block}
+
+Responda APENAS com JSON válido, sem markdown, neste formato:
+{
+  "insights": [{ "title": "achado curto", "description": "explicação em pt-BR, citando a categoria/pergunta que sustenta o achado" }]
+}
+No máximo 5 insights, só os que tiverem sustentação clara nos dados. Lista vazia é uma resposta válida se não houver padrão relevante.`;
 }
 
 export function buildCyclePrompt(categoryResults: Array<{ categoryName: string; summary: string; score: number }>): string {

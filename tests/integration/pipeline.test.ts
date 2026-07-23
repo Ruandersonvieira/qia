@@ -8,6 +8,9 @@ import { runAnalysis } from "@/lib/analysis/pipeline";
 let cycleId: string;
 
 const fakeComplete = async (prompt: string) => {
+  if (prompt.includes("insights")) {
+    return { insights: [] };
+  }
   if (prompt.includes("resumos por categoria")) {
     return { summary: "Ciclo ok no geral", recommendations: [{ title: "Agir", description: "..." }] };
   }
@@ -59,8 +62,8 @@ describe("runAnalysis", () => {
 
     const results = await db.query.analysisResults.findMany({ where: eq(analysisResults.cycleId, cycleId) });
     const kinds = results.map((r) => r.kind).sort();
-    // 1 category_summary (Clima) + 1 cycle_summary; Demografia excluída pelo N mínimo
-    expect(kinds).toEqual(["category_summary", "cycle_summary"]);
+    // 1 category_summary (Clima) + 1 cycle_summary + 1 cycle_insights; Demografia excluída pelo N mínimo
+    expect(kinds).toEqual(["category_summary", "cycle_insights", "cycle_summary"]);
 
     const [usage] = await db.query.usageRecords.findMany({ where: eq(usageRecords.cycleId, cycleId) });
     expect(usage.questionCount).toBe(3);
@@ -77,7 +80,7 @@ describe("runAnalysis", () => {
     await db.update(cycles).set({ status: "closed" }).where(eq(cycles.id, cycleId));
     await runAnalysis(cycleId, fakeComplete);
     const results = await db.query.analysisResults.findMany({ where: eq(analysisResults.cycleId, cycleId) });
-    expect(results).toHaveLength(2);
+    expect(results).toHaveLength(3);
   });
 
   it("em erro, volta status pra closed e grava analysisError", async () => {
@@ -109,6 +112,9 @@ describe("runAnalysis", () => {
     await db.insert(answers).values([{ responseId: r.id, questionId: scaleQ.id, valueNumeric: "5" }]);
 
     const fakeComplete70 = async (prompt: string) => {
+      if (prompt.includes("insights")) {
+        return { insights: [] };
+      }
       if (prompt.includes("resumos por categoria")) {
         return { summary: "Ciclo melhorou", recommendations: [] };
       }

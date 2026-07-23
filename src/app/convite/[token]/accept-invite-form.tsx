@@ -4,6 +4,7 @@ import { acceptInvite } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormError } from "@/components/ui/form-error";
 
 export function AcceptInviteForm({ token }: { token: string }) {
   const [state, formAction, pending] = useActionState(acceptInvite, {});
@@ -38,9 +39,9 @@ export function AcceptInviteForm({ token }: { token: string }) {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
         />
-        {mismatch && <p className="text-sm text-red-600">As senhas não coincidem</p>}
+        <FormError message={mismatch ? "As senhas não coincidem" : undefined} />
       </div>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      <FormError message={state.error} />
       <Button type="submit" disabled={pending || mismatch} className="w-full">
         Definir senha
       </Button>

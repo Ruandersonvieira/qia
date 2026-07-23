@@ -1,5 +1,6 @@
 export * from "./enums";
 export * from "./master";
+export * from "./billing";
 export * from "./clients";
 export * from "./questionnaires";
 export * from "./cycles";

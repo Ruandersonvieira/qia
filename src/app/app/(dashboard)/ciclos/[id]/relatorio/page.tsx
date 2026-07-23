@@ -1,25 +1,17 @@
 import { notFound } from "next/navigation";
+import { BarChart3, ClipboardList, Lightbulb } from "lucide-react";
 import { requireGestor } from "@/lib/auth/session";
 import { getCycleReport } from "../../actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { QuestionAggregate } from "@/lib/analysis/aggregate";
 import type { Recommendation } from "@/db/schema";
 import MetricChart from "./metric-chart";
+import { KpiRow } from "./kpi-row";
+import { CategoryComparisonChart } from "./category-comparison-chart";
+import { QuestionRanking } from "./question-ranking";
+import { RecommendationList } from "../recommendation-list";
 import { TREND_ICON, formatPeriod, scoreColorClass } from "../../status";
-
-function RecommendationList({ recommendations }: { recommendations: Recommendation[] }) {
-  if (recommendations.length === 0) return null;
-  return (
-    <ol className="list-decimal space-y-2 pl-5 text-sm">
-      {recommendations.map((r, i) => (
-        <li key={i}>
-          <span className="font-medium">{r.title}</span>
-          {r.description && <span className="text-muted-foreground"> — {r.description}</span>}
-        </li>
-      ))}
-    </ol>
-  );
-}
+import { PageContainer } from "../../../_components/page-container";
 
 export default async function RelatorioPage({
   params,
@@ -30,25 +22,71 @@ export default async function RelatorioPage({
   const { id } = await params;
   const report = await getCycleReport(id);
   if (!report) notFound();
-  const { cycle, questionnaire, responseCount, cycleSummary, categorySummaries } = report;
+  const { cycle, questionnaire, responseCount, cycleSummary, categorySummaries, insights, kpis, questionRanking } = report;
   if (!questionnaire) notFound();
 
+  const categoryScores = categorySummaries
+    .filter((c) => c.score != null)
+    .map((c) => ({ categoryName: c.categoryName, score: Number(c.score) }));
+
   return (
-    <div className="mx-auto max-w-4xl space-y-8 p-8">
-      <div className="space-y-1">
-        <p className="text-sm text-muted-foreground">Relatório do ciclo</p>
-        <h1 className="text-2xl font-bold">{questionnaire.title}</h1>
-        <p className="text-sm text-muted-foreground">
+    <PageContainer
+      icon={BarChart3}
+      eyebrow="Relatório do ciclo"
+      title={questionnaire.title}
+      description={
+        <p>
           {formatPeriod(cycle.startsAt, cycle.endsAt)} · {responseCount}{" "}
           {responseCount === 1 ? "resposta" : "respostas"} · {cycle.questionCount}{" "}
           {cycle.questionCount === 1 ? "pergunta" : "perguntas"}
         </p>
-      </div>
+      }
+    >
+      <KpiRow kpis={kpis} responseCount={responseCount} />
+
+      {categoryScores.length > 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Comparativo entre categorias</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CategoryComparisonChart data={categoryScores} />
+          </CardContent>
+        </Card>
+      )}
+
+      {insights && (insights.recommendations as Recommendation[]).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-1.5">
+              <Lightbulb className="size-4 text-muted-foreground" />
+              Insights e tendências
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RecommendationList recommendations={insights.recommendations as Recommendation[]} />
+          </CardContent>
+        </Card>
+      )}
+
+      {(questionRanking.best.length > 0 || questionRanking.worst.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ranking de perguntas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <QuestionRanking best={questionRanking.best} worst={questionRanking.worst} />
+          </CardContent>
+        </Card>
+      )}
 
       {cycleSummary && (
         <Card>
           <CardHeader>
-            <CardTitle>Resumo geral</CardTitle>
+            <CardTitle className="flex items-center gap-1.5">
+              <ClipboardList className="size-4 text-muted-foreground" />
+              Resumo geral
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm">{cycleSummary.summary}</p>
@@ -91,6 +129,6 @@ export default async function RelatorioPage({
           </Card>
         );
       })}
-    </div>
+    </PageContainer>
   );
 }

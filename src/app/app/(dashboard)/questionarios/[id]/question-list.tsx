@@ -1,6 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { archiveQuestion, deleteQuestion, moveQuestion } from "./perguntas/actions";
+import EditQuestionDialog from "./edit-question-dialog";
+import type { AnswerType } from "./question-form";
 
 const ANSWER_TYPE_LABELS: Record<string, string> = {
   scale: "Escala",
@@ -20,9 +22,12 @@ interface Question {
   id: string;
   text: string;
   categoryId: string;
-  answerType: string;
+  answerType: AnswerType;
+  analysisGoal: string;
+  howToWork: string;
   isRequired: boolean;
   isSensitive: boolean;
+  config: { min?: number; max?: number; minLabel?: string; maxLabel?: string };
   status: string;
   options: QuestionOption[];
   hasAnswers: boolean;
@@ -78,6 +83,7 @@ export default function QuestionList({ questionnaireId, questions, categories }:
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <EditQuestionDialog questionnaireId={questionnaireId} categories={categories} question={q} />
               {isActive && (
                 <>
                   <form action={moveQuestion}>

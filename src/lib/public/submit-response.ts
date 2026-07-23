@@ -1,10 +1,12 @@
 import { and, count, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { answers, cycles, questions, responses } from "@/db/schema";
+import { answers, cycles, questions, responses, users } from "@/db/schema";
 
 export type SubmitInput = {
   publicToken: string;
   fingerprint: string;
+  /** id do auth.user da sessão, se o respondente estiver logado — permite listar "já respondido" em /app/pendentes. */
+  authUserId?: string;
   answers: Array<{ questionId: string; valueNumeric?: number; valueText?: string; valueOptions?: string[] }>;
 };
 
@@ -44,6 +46,17 @@ export async function submitResponse(input: SubmitInput): Promise<SubmitResult> 
     }
   }
 
+  // Só vincula a um usuário se ele for membro ativo deste client — a análise
+  // nunca lê esse campo (só anon_key/masked_text), então não afeta o
+  // anonimato do pipeline; serve só pra listar "já respondido" pro próprio respondente.
+  let userId: string | null = null;
+  if (input.authUserId) {
+    const member = await db.query.users.findFirst({
+      where: and(eq(users.authUserId, input.authUserId), eq(users.clientId, cycle.clientId), eq(users.status, "active")),
+    });
+    if (member) userId = member.id;
+  }
+
   try {
     await db.transaction(async (tx) => {
       const [response] = await tx
@@ -51,6 +64,7 @@ export async function submitResponse(input: SubmitInput): Promise<SubmitResult> 
         .values({
           clientId: cycle.clientId,
           cycleId: cycle.id,
+          userId,
           anonKey: crypto.randomUUID(),
           sessionFingerprint: input.fingerprint,
           submittedAt: new Date(),

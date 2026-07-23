@@ -1,5 +1,6 @@
 "use server";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { auth } from "@/lib/auth/auth";
 import { submitResponse, type SubmitInput } from "@/lib/public/submit-response";
 
 export async function submitPublicResponse(publicToken: string, answersInput: SubmitInput["answers"]) {
@@ -9,5 +10,6 @@ export async function submitPublicResponse(publicToken: string, answersInput: Su
     fp = crypto.randomUUID();
     jar.set("qia_fp", fp, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
   }
-  return submitResponse({ publicToken, fingerprint: fp, answers: answersInput });
+  const session = await auth.api.getSession({ headers: await headers() });
+  return submitResponse({ publicToken, fingerprint: fp, authUserId: session?.user.id, answers: answersInput });
 }

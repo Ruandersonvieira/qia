@@ -22,6 +22,12 @@ export function scoreColorClass(score: number): string {
   return "text-red-600";
 }
 
+export function scoreBarClass(score: number): string {
+  if (score >= 70) return "bg-green-600";
+  if (score >= 40) return "bg-amber-600";
+  return "bg-red-600";
+}
+
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 export function formatPeriod(startsAt: Date, endsAt: Date | null): string {

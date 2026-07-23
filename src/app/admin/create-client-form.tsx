@@ -1,21 +1,15 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { createClientWithOwner } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormError } from "@/components/ui/form-error";
+import { InviteLinkBox } from "@/components/ui/invite-link-box";
 
 export function CreateClientForm() {
   const [state, formAction, pending] = useActionState(createClientWithOwner, {});
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    if (!state.inviteUrl) return;
-    await navigator.clipboard.writeText(state.inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
 
   return (
     <Card className="w-full">
@@ -38,20 +32,10 @@ export function CreateClientForm() {
             <Label htmlFor="ownerEmail">Email do owner</Label>
             <Input id="ownerEmail" name="ownerEmail" type="email" required />
           </div>
-          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+          <FormError message={state.error} />
           <Button type="submit" disabled={pending} className="w-full">Criar client</Button>
         </form>
-        {state.inviteUrl && (
-          <div className="mt-4 space-y-2 rounded border p-3">
-            <p className="text-sm text-muted-foreground">Link de convite:</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 overflow-x-auto text-sm">{state.inviteUrl}</code>
-              <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
-                {copied ? "Copiado!" : "Copiar"}
-              </Button>
-            </div>
-          </div>
-        )}
+        {state.inviteUrl && <InviteLinkBox url={state.inviteUrl} />}
       </CardContent>
     </Card>
   );

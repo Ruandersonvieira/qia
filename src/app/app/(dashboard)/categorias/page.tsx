@@ -1,68 +1,72 @@
+import { Tags } from "lucide-react";
 import { requireGestor } from "@/lib/auth/session";
-import { listCategories, createCategory, updateCategory } from "./actions";
+import { listCategories, updateCategory } from "./actions";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import CategoryEditForm from "./category-edit-form";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "../_components/data-table";
+import { PageContainer } from "../_components/page-container";
+import { NewCategoryDialog } from "./new-category-dialog";
+import { parsePage, parseParam } from "../_components/paged-result";
 
-export default async function CategoriasPage() {
+type Category = Awaited<ReturnType<typeof listCategories>>["data"][number];
+
+function buildColumns(clientId: string): DataTableColumn<Category>[] {
+  return [
+    { header: "Nome", cellClassName: "font-medium", cell: (cat) => cat.name },
+    { header: "Descrição", cell: (cat) => cat.description },
+    {
+      header: "Tipo",
+      headerClassName: "w-20",
+      cell: (cat) => cat.clientId === null && <Badge variant="outline">Global</Badge>,
+    },
+    {
+      header: "Ações",
+      headerClassName: "w-20",
+      cell: (cat) => cat.clientId === clientId && <CategoryEditForm category={cat} onUpdate={updateCategory} />,
+    },
+  ];
+}
+
+const filters: DataTableFilter[] = [
+  {
+    label: "Tipo",
+    paramKey: "type",
+    options: [
+      { value: "global", label: "Global" },
+      { value: "own", label: "Específica da empresa" },
+    ],
+  },
+];
+
+export default async function CategoriasPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { clientId } = await requireGestor();
-  const cats = await listCategories();
+  const sp = await searchParams;
+  const typeParam = parseParam(sp.type);
+  const { data, total } = await listCategories({
+    q: parseParam(sp.q),
+    type: typeParam === "global" || typeParam === "own" ? typeParam : undefined,
+    page: parsePage(sp.page),
+  });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 p-8">
-      <h1 className="text-2xl font-bold">Categorias</h1>
-
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Criar Categoria</h2>
-        <form action={createCategory} className="flex gap-2">
-          <Input
-            type="text"
-            name="name"
-            placeholder="Nome"
-            required
-            className="flex-1"
-          />
-          <Input
-            type="text"
-            name="description"
-            placeholder="Descrição"
-            className="flex-1"
-          />
-          <Button type="submit">Criar</Button>
-        </form>
-      </div>
-
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Categorias</h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead className="w-20">Tipo</TableHead>
-              <TableHead className="w-20">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {cats.map((cat) => (
-              <TableRow key={cat.id}>
-                <TableCell className="font-medium">{cat.name}</TableCell>
-                <TableCell>{cat.description}</TableCell>
-                <TableCell>
-                  {cat.clientId === null && <Badge variant="outline">Global</Badge>}
-                </TableCell>
-                <TableCell>
-                  {cat.clientId === clientId && (
-                    <CategoryEditForm category={cat} onUpdate={updateCategory} />
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <PageContainer icon={Tags} title="Categorias">
+      <DataTable
+        columns={buildColumns(clientId)}
+        data={data}
+        total={total}
+        page={parsePage(sp.page)}
+        rowKey={(cat) => cat.id}
+        emptyIcon={Tags}
+        emptyMessage="Nenhuma categoria ainda."
+        searchParamKey="q"
+        filterPlaceholder="Buscar categoria…"
+        filters={filters}
+        action={<NewCategoryDialog />}
+      />
+    </PageContainer>
   );
 }

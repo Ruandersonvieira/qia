@@ -29,13 +29,13 @@ Sobe um Postgres 16 na porta **5434** (`docker-compose.yml`), com usuário/senha
 cp .env.example .env.local
 ```
 
-| Variável                 | Descrição                                                              |
-| ------------------------- | ------------------------------------------------------------------------ |
-| `DATABASE_URL`            | `postgres://qia:qia@localhost:5434/qia`                                  |
-| `BETTER_AUTH_SECRET`      | Segredo do Better Auth (sessão do gestor)                                |
-| `MASTER_SESSION_SECRET`   | Segredo do JWT de sessão do admin master                                 |
-| `ANTHROPIC_API_KEY`       | Chave da API da Anthropic, usada na análise ao fechar um ciclo           |
-| `NEXT_PUBLIC_APP_URL`     | URL base da aplicação (usada para montar o link de convite)              |
+| Variável                | Descrição                                                      |
+| ----------------------- | -------------------------------------------------------------- |
+| `DATABASE_URL`          | `postgres://qia:qia@localhost:5434/qia`                        |
+| `BETTER_AUTH_SECRET`    | Segredo do Better Auth (sessão do gestor)                      |
+| `MASTER_SESSION_SECRET` | Segredo do JWT de sessão do admin master                       |
+| `ANTHROPIC_API_KEY`     | Chave da API da Anthropic, usada na análise ao fechar um ciclo |
+| `NEXT_PUBLIC_APP_URL`   | URL base da aplicação (usada para montar o link de convite)    |
 
 Gere segredos com `openssl rand -hex 32`.
 
@@ -68,17 +68,17 @@ Sobe em `http://localhost:3000` (cai para `3001` se a 3000 estiver ocupada).
 
 ## Scripts pnpm
 
-| Script              | Descrição                                          |
-| -------------------- | --------------------------------------------------- |
-| `pnpm dev`            | Servidor de desenvolvimento (Next + Turbopack)       |
-| `pnpm build`          | Build de produção                                    |
-| `pnpm start`          | Sobe o build de produção                             |
-| `pnpm lint`           | ESLint                                               |
-| `pnpm test`           | Testes (Vitest) — unitários e de integração          |
-| `pnpm db:generate`    | Gera migration a partir do schema (`src/db/schema`)  |
-| `pnpm db:migrate`     | Aplica migrations pendentes no banco                 |
-| `pnpm seed:master`    | Cria/atualiza o admin master (`MASTER_EMAIL`/`MASTER_PASSWORD`) |
-| `pnpm seed:categories`| Cria as categorias globais padrão                    |
+| Script                 | Descrição                                                       |
+| ---------------------- | --------------------------------------------------------------- |
+| `pnpm dev`             | Servidor de desenvolvimento (Next + Turbopack)                  |
+| `pnpm build`           | Build de produção                                               |
+| `pnpm start`           | Sobe o build de produção                                        |
+| `pnpm lint`            | ESLint                                                          |
+| `pnpm test`            | Testes (Vitest) — unitários e de integração                     |
+| `pnpm db:generate`     | Gera migration a partir do schema (`src/db/schema`)             |
+| `pnpm db:migrate`      | Aplica migrations pendentes no banco                            |
+| `pnpm seed:master`     | Cria/atualiza o admin master (`MASTER_EMAIL`/`MASTER_PASSWORD`) |
+| `pnpm seed:categories` | Cria as categorias globais padrão                               |
 
 Os testes de integração usam o Postgres do `docker-compose.yml`; garanta que ele esteja de pé antes de rodar `pnpm test`.
 
@@ -86,30 +86,30 @@ Os testes de integração usam o Postgres do `docker-compose.yml`; garanta que e
 
 Credenciais locais (banco dev na porta 5434 — nunca usar em produção):
 
-| Usuário                  | Senha            | Onde loga     | Origem                                                    |
-| ------------------------- | ----------------- | -------------- | ---------------------------------------------------------- |
-| `admin@qia.local`         | `admin123`        | `/admin/login` | Seed padrão (`pnpm seed:master`, ver Setup local)          |
-| `smoke@qia.local`         | `Smoke123!`       | `/admin/login` | Admin master criado pelo smoke test E2E (2026-07-19)       |
-| `ana+*@smoke.test`        | `SenhaForte123!`  | `/app/login`   | Gestores dos clients `smoke-*` criados pelo smoke test     |
+| Usuário            | Senha            | Onde loga      | Origem                                                 |
+| ------------------ | ---------------- | -------------- | ------------------------------------------------------ |
+| `admin@qia.local`  | `admin123`       | `/admin/login` | Seed padrão (`pnpm seed:master`, ver Setup local)      |
+| `smoke@qia.local`  | `Smoke123!`      | `/admin/login` | Admin master criado pelo smoke test E2E (2026-07-19)   |
+| `ana+*@smoke.test` | `SenhaForte123!` | `/app/login`   | Gestores dos clients `smoke-*` criados pelo smoke test |
 
 O seed do master é idempotente: rodar `MASTER_EMAIL=... MASTER_PASSWORD=... pnpm seed:master` de novo atualiza a senha.
 
 ## Mapa de rotas
 
-| Rota                              | Quem acessa       | Descrição                                                              |
-| ---------------------------------- | ------------------ | -------------------------------------------------------------------------- |
-| `/admin/login`                     | Admin master        | Login do master (sessão JWT própria)                                       |
-| `/admin`                           | Admin master        | Cria clientes (tenants) e dispara convite de owner                         |
-| `/convite/[token]`                 | Owner convidado     | Aceita o convite e define senha (cria usuário no Better Auth)              |
-| `/app/login`                       | Gestor              | Login do gestor (Better Auth)                                              |
-| `/app`                             | Gestor              | Início da área logada do cliente                                           |
-| `/app/categorias`                  | Gestor              | CRUD de categorias próprias do cliente                                     |
-| `/app/questionarios`               | Gestor              | Lista/CRUD de questionários                                                |
-| `/app/questionarios/novo`          | Gestor              | Criação de questionário                                                    |
-| `/app/questionarios/[id]`          | Gestor              | Detalhe do questionário: perguntas, opções, ativação                       |
-| `/app/ciclos/[id]`                 | Gestor              | Detalhe do ciclo: link/QR público, fechar e analisar                       |
-| `/app/ciclos/[id]/relatorio`       | Gestor              | Relatório da análise (resumo geral, por categoria, gráficos, recomendações)|
-| `/r/[token]`                       | Público             | Página de resposta do ciclo público (sem login, com dedup por fingerprint) |
+| Rota                         | Quem acessa     | Descrição                                                                   |
+| ---------------------------- | --------------- | --------------------------------------------------------------------------- |
+| `/admin/login`               | Admin master    | Login do master (sessão JWT própria)                                        |
+| `/admin`                     | Admin master    | Cria clientes (tenants) e dispara convite de owner                          |
+| `/convite/[token]`           | Owner convidado | Aceita o convite e define senha (cria usuário no Better Auth)               |
+| `/app/login`                 | Gestor          | Login do gestor (Better Auth)                                               |
+| `/app`                       | Gestor          | Início da área logada do cliente                                            |
+| `/app/categorias`            | Gestor          | CRUD de categorias próprias do cliente                                      |
+| `/app/questionarios`         | Gestor          | Lista/CRUD de questionários                                                 |
+| `/app/questionarios/novo`    | Gestor          | Criação de questionário                                                     |
+| `/app/questionarios/[id]`    | Gestor          | Detalhe do questionário: perguntas, opções, ativação                        |
+| `/app/ciclos/[id]`           | Gestor          | Detalhe do ciclo: link/QR público, fechar e analisar                        |
+| `/app/ciclos/[id]/relatorio` | Gestor          | Relatório da análise (resumo geral, por categoria, gráficos, recomendações) |
+| `/r/[token]`                 | Público         | Página de resposta do ciclo público (sem login, com dedup por fingerprint)  |
 
 ## Fluxo ponta a ponta
 

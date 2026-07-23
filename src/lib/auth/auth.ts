@@ -3,11 +3,17 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
+import { sendResetPasswordEmail } from "@/lib/email/resend";
 
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_APP_URL,
   database: drizzleAdapter(db, { provider: "pg" }),
-  emailAndPassword: { enabled: true },
+  emailAndPassword: {
+    enabled: true,
+    sendResetPassword: async ({ user, url }) => {
+      await sendResetPasswordEmail(user.email, url);
+    },
+  },
   databaseHooks: {
     user: {
       create: {

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."analysis_kind" ADD VALUE 'cycle_insights';

@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { FormDialog } from "@/components/ui/form-dialog";
+import type { ActionResult } from "@/lib/toast";
 
 interface Category {
   id: string;
@@ -12,67 +15,31 @@ interface Category {
 
 interface CategoryEditFormProps {
   category: Category;
-  onUpdate: (formData: FormData) => Promise<void>;
+  onUpdate: (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
 }
 
 export default function CategoryEditForm({ category, onUpdate }: CategoryEditFormProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(category.name);
-  const [description, setDescription] = useState(category.description);
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.set("id", category.id);
-    formData.set("name", name);
-    formData.set("description", description);
-    await onUpdate(formData);
-    setIsEditing(false);
-  };
-
-  if (!isEditing) {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => setIsEditing(true)}
-      >
-        Editar
-      </Button>
-    );
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="flex gap-1">
-      <Input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="h-8 text-sm"
-        required
-      />
-      <Input
-        type="text"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        className="h-8 text-sm"
-      />
-      <Button type="submit" size="sm" variant="default">
-        Salvar
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={() => {
-          setIsEditing(false);
-          setName(category.name);
-          setDescription(category.description);
-        }}
-      >
-        Cancelar
-      </Button>
-    </form>
+    <FormDialog
+      trigger={
+        <Button type="button" variant="outline" size="sm" className="gap-1.5">
+          <Pencil className="size-3.5" />
+          Editar
+        </Button>
+      }
+      title="Editar categoria"
+      action={onUpdate}
+      successMessage="Categoria atualizada."
+    >
+      <input type="hidden" name="id" value={category.id} />
+      <div className="space-y-2">
+        <Label htmlFor="name">Nome</Label>
+        <Input id="name" name="name" defaultValue={category.name} required />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="description">Descrição</Label>
+        <Input id="description" name="description" defaultValue={category.description} />
+      </div>
+    </FormDialog>
   );
 }
