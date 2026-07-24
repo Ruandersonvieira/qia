@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 const DEMO_MAILTO =
-  "mailto:ruanderson.vieira@gmail.com?subject=Quero%20uma%20demo%20da%20QIA&body=Ol%C3%A1!%20Quero%20ver%20a%20QIA%20funcionando.%0A%0ANome%3A%0AEmpresa%3A%0ATamanho%20da%20equipe%3A";
+  "mailto:ruanderson@accalia.io?subject=Quero%20uma%20demo%20da%20QIA&body=Ol%C3%A1!%20Quero%20ver%20a%20QIA%20funcionando.%0A%0ANome%3A%0AEmpresa%3A%0ATamanho%20da%20equipe%3A";
 
 const categoryScores = [
   { name: "Clima", score: 7.8, width: "78%", delay: "0.5s" },
